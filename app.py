@@ -32,6 +32,7 @@ app = Flask(__name__)
 # Variables de entorno para el envío de correo (definidas en .env)
 SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USE_SSL = os.getenv("SMTP_USE_SSL", "false").strip().lower() in {"1", "true", "yes", "on"}
 SMTP_EMAIL = os.getenv("SMTP_EMAIL")            # correo que envía
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "").strip().replace(" ", "")  # contraseña de aplicación
 DESTINATION_EMAIL = os.getenv("DESTINATION_EMAIL")  # correo que recibe la invitación aceptada
@@ -135,11 +136,15 @@ Fecha:
     mensaje.attach(MIMEText(cuerpo, "plain", "utf-8"))
 
     try:
-        # Conexión segura con el servidor SMTP (TLS) con timeout para evitar bloques en producción.
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=10) as server:
-            server.starttls()
-            server.login(SMTP_EMAIL, SMTP_PASSWORD)
-            server.sendmail(SMTP_EMAIL, DESTINATION_EMAIL, mensaje.as_string())
+        if SMTP_USE_SSL or SMTP_PORT == 465:
+            with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=10) as server:
+                server.login(SMTP_EMAIL, SMTP_PASSWORD)
+                server.sendmail(SMTP_EMAIL, DESTINATION_EMAIL, mensaje.as_string())
+        else:
+            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=10) as server:
+                server.starttls()
+                server.login(SMTP_EMAIL, SMTP_PASSWORD)
+                server.sendmail(SMTP_EMAIL, DESTINATION_EMAIL, mensaje.as_string())
         return {
             "email_sent": True,
             "message": "¡Correo enviado con éxito!"
