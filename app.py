@@ -151,6 +151,15 @@ Fecha:
                 "email_sent": True,
                 "message": "¡Correo enviado con éxito!"
             }
+        except requests.exceptions.HTTPError as http_err:
+            body = http_err.response.text if getattr(http_err, 'response', None) is not None else ''
+            app.logger.error(f"Mailgun HTTP error: {http_err} - {body}")
+            return {
+                "email_sent": False,
+                "message": "Correo no enviado.",
+                "smtp_error": str(http_err),
+                "mailgun_response": body
+            }
         except Exception as error:
             app.logger.error(f"Error enviando correo con Mailgun: {error}")
             return {
