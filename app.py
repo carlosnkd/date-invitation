@@ -50,12 +50,8 @@ def index():
 @app.route("/test-email", methods=["GET"])
 def test_email():
     """Endpoint de diagnóstico para probar el envío de correo."""
-    email_sent = enviar_correo("Prueba", "Prueba", "Prueba")
-    return jsonify({
-        "status": "ok",
-        "email_sent": email_sent,
-        "message": "Correo de prueba enviado" if email_sent else "Correo de prueba fallido"
-    }), 200
+    result = enviar_correo("Prueba", "Prueba", "Prueba")
+    return jsonify(result), 200
 
 
 @app.route("/submit", methods=["POST"])
@@ -97,11 +93,12 @@ def submit():
         }), 200
 
     try:
-        email_sent = enviar_correo(lugar, experiencia, fecha)
+        result = enviar_correo(lugar, experiencia, fecha)
         return jsonify({
             "status": "ok",
-            "email_sent": email_sent,
-            "message": "¡Correo enviado con éxito!" if email_sent else "Plan guardado, pero el correo no pudo enviarse."
+            "email_sent": result["email_sent"],
+            "message": result["message"],
+            "smtp_error": result.get("smtp_error")
         }), 200
     except Exception as error:
         print(f"[DEBUG] Error: {error}")
@@ -109,7 +106,8 @@ def submit():
         return jsonify({
             "status": "ok",
             "email_sent": False,
-            "message": "Plan guardado, pero el correo no pudo enviarse."
+            "message": "Plan guardado, pero el correo no pudo enviarse.",
+            "smtp_error": str(error)
         }), 200
 
 
@@ -142,11 +140,18 @@ Fecha:
             server.starttls()
             server.login(SMTP_EMAIL, SMTP_PASSWORD)
             server.sendmail(SMTP_EMAIL, DESTINATION_EMAIL, mensaje.as_string())
-        return True
+        return {
+            "email_sent": True,
+            "message": "¡Correo enviado con éxito!"
+        }
     except Exception as error:
         app.logger.error(f"Error enviando correo: {error}")
         print(f"[DEBUG] SMTP error: {error}")
-        return False
+        return {
+            "email_sent": False,
+            "message": "Correo no enviado.",
+            "smtp_error": str(error)
+        }
 
 
 # ---------------------------------------------------------------------------
