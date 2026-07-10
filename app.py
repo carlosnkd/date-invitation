@@ -14,6 +14,7 @@ Se cargan desde un archivo .env mediante python-dotenv (ver README.md).
 
 import os
 import smtplib
+import requests
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -36,6 +37,9 @@ SMTP_USE_SSL = os.getenv("SMTP_USE_SSL", "false").strip().lower() in {"1", "true
 SMTP_EMAIL = os.getenv("SMTP_EMAIL")            # correo que envía
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "").strip().replace(" ", "")  # contraseña de aplicación
 DESTINATION_EMAIL = os.getenv("DESTINATION_EMAIL")  # correo que recibe la invitación aceptada
+MAILGUN_API_KEY = os.getenv("MAILGUN_API_KEY", "")
+MAILGUN_DOMAIN = os.getenv("MAILGUN_DOMAIN", "")
+MAILGUN_FROM = os.getenv("MAILGUN_FROM", SMTP_EMAIL or "")
 
 
 # ---------------------------------------------------------------------------
@@ -113,7 +117,7 @@ def submit():
 
 
 def enviar_correo(lugar, experiencia, fecha):
-    """Construye y envía el correo con el resumen del plan vía SMTP."""
+    """Construye y envía el correo con el resumen del plan vía SMTP o Mailgun."""
 
     asunto = "Nuevo plan aceptado "
 
@@ -128,6 +132,32 @@ Experiencia:
 Fecha:
 {fecha}
 """
+
+    if MAILGUN_API_KEY and MAILGUN_DOMAIN:
+        try:
+            response = requests.post(
+                f"https://api.mailgun.net/v3/{MAILGUN_DOMAIN}/messages",
+                auth=("api", MAILGUN_API_KEY),
+                data={
+                    "from": MAILGUN_FROM or f"Mailgun Sandbox <postmaster@{MAILGUN_DOMAIN}>",
+                    "to": DESTINATION_EMAIL,
+                    "subject": asunto,
+                    "text": cuerpo,
+                },
+                timeout=10,
+            )
+            response.raise_for_status()
+            return {
+                "email_sent": True,
+                "message": "¡Correo enviado con éxito!"
+            }
+        except Exception as error:
+            app.logger.error(f"Error enviando correo con Mailgun: {error}")
+            return {
+                "email_sent": False,
+                "message": "Correo no enviado.",
+                "smtp_error": str(error)
+            }
 
     mensaje = MIMEMultipart()
     mensaje["From"] = SMTP_EMAIL
