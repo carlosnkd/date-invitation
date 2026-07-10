@@ -60,6 +60,10 @@ def submit():
             "fecha": "2026-08-20"
         }
     """
+    print("[DEBUG] /submit endpoint called")
+    print(f"[DEBUG] SMTP_EMAIL: {SMTP_EMAIL}")
+    print(f"[DEBUG] DESTINATION_EMAIL: {DESTINATION_EMAIL}")
+
     data = request.get_json(silent=True) or {}
 
     lugar = data.get("lugar", "No especificado")
@@ -74,6 +78,7 @@ def submit():
             "Variables SMTP no configuradas. Revisa tu archivo .env. "
             "No se envió ningún correo real."
         )
+        print("[DEBUG] Missing SMTP variables")
         return jsonify({
             "status": "ok",
             "email_sent": False,
@@ -88,6 +93,7 @@ def submit():
             "message": "¡Correo enviado con éxito!"
         }), 200
     except Exception as error:
+        print(f"[DEBUG] Error: {error}")
         app.logger.error(f"Error enviando correo: {error}")
         return jsonify({
             "status": "error",
