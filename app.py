@@ -33,7 +33,7 @@ app = Flask(__name__)
 SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_EMAIL = os.getenv("SMTP_EMAIL")            # correo que envía
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")      # contraseña de aplicación
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "").strip().replace(" ", "")  # contraseña de aplicación
 DESTINATION_EMAIL = os.getenv("DESTINATION_EMAIL")  # correo que recibe la invitación aceptada
 
 
@@ -86,20 +86,20 @@ def submit():
         }), 200
 
     try:
-        enviar_correo(lugar, experiencia, fecha)
+        email_sent = enviar_correo(lugar, experiencia, fecha)
         return jsonify({
             "status": "ok",
-            "email_sent": True,
-            "message": "¡Correo enviado con éxito!"
+            "email_sent": email_sent,
+            "message": "¡Correo enviado con éxito!" if email_sent else "Plan guardado, pero el correo no pudo enviarse."
         }), 200
     except Exception as error:
         print(f"[DEBUG] Error: {error}")
         app.logger.error(f"Error enviando correo: {error}")
         return jsonify({
-            "status": "error",
+            "status": "ok",
             "email_sent": False,
-            "message": "Ocurrió un error al enviar el correo."
-        }), 500
+            "message": "Plan guardado, pero el correo no pudo enviarse."
+        }), 200
 
 
 def enviar_correo(lugar, experiencia, fecha):
@@ -125,11 +125,17 @@ Fecha:
     mensaje["Subject"] = asunto
     mensaje.attach(MIMEText(cuerpo, "plain", "utf-8"))
 
-    # Conexión segura con el servidor SMTP (TLS)
-    with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-        server.starttls()
-        server.login(SMTP_EMAIL, SMTP_PASSWORD)
-        server.sendmail(SMTP_EMAIL, DESTINATION_EMAIL, mensaje.as_string())
+    try:
+        # Conexión segura con el servidor SMTP (TLS) con timeout para evitar bloques en producción.
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=10) as server:
+            server.starttls()
+            server.login(SMTP_EMAIL, SMTP_PASSWORD)
+            server.sendmail(SMTP_EMAIL, DESTINATION_EMAIL, mensaje.as_string())
+        return True
+    except Exception as error:
+        app.logger.error(f"Error enviando correo: {error}")
+        print(f"[DEBUG] SMTP error: {error}")
+        return False
 
 
 # ---------------------------------------------------------------------------
