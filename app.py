@@ -47,6 +47,17 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/test-email", methods=["GET"])
+def test_email():
+    """Endpoint de diagnóstico para probar el envío de correo."""
+    email_sent = enviar_correo("Prueba", "Prueba", "Prueba")
+    return jsonify({
+        "status": "ok",
+        "email_sent": email_sent,
+        "message": "Correo de prueba enviado" if email_sent else "Correo de prueba fallido"
+    }), 200
+
+
 @app.route("/submit", methods=["POST"])
 def submit():
     """
